@@ -16,10 +16,15 @@ export default function Home() {
         { responseType: "blob" }
       );
 
-      console.log("response", response);
+      // const responseData = await response.json();
+      console.log("PDF created", response.data);
 
       // read output.pdf
-      const url = "/output.pdf";
+      // const url = "/output.pdf";
+      // setPdfUrl(url);
+      const url = window.URL.createObjectURL(
+        new Blob([response.data], { type: "application/pdf" })
+      );
       setPdfUrl(url);
     } catch (error) {
       console.error("Error generating PDF", error);

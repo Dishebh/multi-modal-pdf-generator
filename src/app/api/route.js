@@ -67,12 +67,13 @@ async function createPDF(text, imageBuffer) {
   });
 
   const pdfBytes = await pdfDoc.save();
-  console.log("PDF created", pdfBytes);
+  const pdfBuffer = Buffer.from(pdfBytes.buffer, "binary");
+  console.log("PDF created", pdfBuffer);
 
   // path should be in public folder
   const path = "public/output.pdf";
   fs.writeFileSync(path, pdfBytes);
-  return pdfBytes;
+  return pdfBuffer;
 }
 
 export async function POST(req, res) {
@@ -84,13 +85,10 @@ export async function POST(req, res) {
     const imageUrl =
       "https://randomwordgenerator.com/img/picture-generator/57e0d6424c5aa414f1dc8460962e33791c3ad6e04e507440762e7adc934cc7_640.jpg";
     const imageBuffer = await downloadImage(imageUrl);
-    const pdfBytes = await createPDF(text, imageBuffer);
+    const pdfBuffer = await createPDF(text, imageBuffer);
 
     // set headers in nextresponse
-    const response = NextResponse.json({
-      status: "OK",
-      pdf: Buffer.from(pdfBytes),
-    });
+    const response = new NextResponse(pdfBuffer);
     response.headers.set("Content-Type", "application/pdf");
     response.headers.set(
       "Content-Disposition",
