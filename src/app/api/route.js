@@ -71,8 +71,8 @@ async function createPDF(text, imageBuffer) {
   console.log("PDF created", pdfBuffer);
 
   // path should be in public folder
-  const path = "public/output.pdf";
-  fs.writeFileSync(path, pdfBytes);
+  // const path = "public/output.pdf";
+  // fs.writeFileSync(path, pdfBytes);
   return pdfBuffer;
 }
 
