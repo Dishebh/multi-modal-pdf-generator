@@ -8,6 +8,7 @@ export default function Home() {
   const [textPrompt, setTextPrompt] = useState("");
   const [pdfUrl, setPdfUrl] = useState("");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   const generatePDF = async () => {
     setLoading(true);
@@ -29,6 +30,7 @@ export default function Home() {
       setPdfUrl(url);
     } catch (error) {
       console.error("Error generating PDF", error);
+      setError(error);
     } finally {
       setLoading(false);
     }
@@ -53,13 +55,14 @@ export default function Home() {
           color="primary"
           onClick={generatePDF}
           style={{ marginTop: "20px" }}
-          disabled={!textPrompt}
+          disabled={!textPrompt || loading}
         >
-          Generate PDF
+          {loading ? "Generating PDF..." : "Generate PDF"}
         </Button>
       </Container>
       {loading && <Typography variant="body1">Loading...</Typography>}
-      {!loading && pdfUrl && (
+      {error && <Typography variant="body1">Error: {error.message}</Typography>}
+      {!loading && !error && pdfUrl && (
         <iframe
           src={pdfUrl}
           title="output-pdf"

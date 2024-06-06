@@ -9,18 +9,22 @@ const openai = new OpenAI({
 });
 
 async function generateText(prompt) {
-  const response = await openai.chat.completions.create({
-    model: "gpt-4", // Replace with "gpt-4" if available
-    max_tokens: 500,
-    messages: [
-      {
-        role: "user",
-        content: prompt,
-      },
-    ],
-  });
+  try {
+    const response = await openai.chat.completions.create({
+      model: "gpt-4", // Replace with "gpt-4" if available
+      max_tokens: 500,
+      messages: [
+        {
+          role: "user",
+          content: prompt,
+        },
+      ],
+    });
 
-  return response.data;
+    return response.choices[0].message.content;
+  } catch (error) {
+    console.error("Error generating text:", error);
+  }
 }
 
 async function generateImage(prompt) {
@@ -29,6 +33,7 @@ async function generateImage(prompt) {
     model: "dall-e-3",
     n: 1,
     size: "1024x1024",
+    quality: "standard",
   });
 
   return response.data[0].url;
@@ -187,13 +192,19 @@ export async function POST(req, res) {
     const imageUrl = "https://wallpapercave.com/wp/wp4471392.jpg";
     const imageUrl2 = "https://cdn.wallpapersafari.com/56/10/tZn5Dl.jpg";
 
-    // const text2 = await generateText(textPrompt);
-    // const image2 = await generateImage(textPrompt);
+    const gptText = await generateText(textPrompt);
+    console.log("gpt text generated!", gptText);
 
-    const imageBuffer1 = await downloadImage(imageUrl);
-    const imageBuffer2 = await downloadImage(imageUrl2);
+    const gptImage1 = await generateImage(textPrompt);
+    console.log("gptImage1 generated!", gptImage1);
+
+    const gptImage2 = await generateImage(textPrompt);
+    console.log("gptImage2 generated!", gptImage2);
+
+    const imageBuffer1 = await downloadImage(gptImage1);
+    const imageBuffer2 = await downloadImage(gptImage2);
     const pdfBuffer = await createPDF({
-      text,
+      text: gptText,
       heading: textPrompt,
       imageBuffer1,
       imageBuffer2,
