@@ -192,19 +192,19 @@ export async function POST(req, res) {
     const imageUrl = "https://wallpapercave.com/wp/wp4471392.jpg";
     const imageUrl2 = "https://cdn.wallpapersafari.com/56/10/tZn5Dl.jpg";
 
-    const gptText = await generateText(textPrompt);
-    console.log("gpt text generated!", gptText);
+    // const gptText = await generateText(textPrompt);
+    // console.log("gpt text generated!", gptText);
 
-    const gptImage1 = await generateImage(textPrompt);
-    console.log("gptImage1 generated!", gptImage1);
+    // const gptImage1 = await generateImage(textPrompt);
+    // console.log("gptImage1 generated!", gptImage1);
 
-    const gptImage2 = await generateImage(textPrompt);
-    console.log("gptImage2 generated!", gptImage2);
+    // const gptImage2 = await generateImage(textPrompt);
+    // console.log("gptImage2 generated!", gptImage2);
 
-    const imageBuffer1 = await downloadImage(gptImage1);
-    const imageBuffer2 = await downloadImage(gptImage2);
+    const imageBuffer1 = await downloadImage(imageUrl);
+    const imageBuffer2 = await downloadImage(imageUrl2);
     const pdfBuffer = await createPDF({
-      text: gptText,
+      text,
       heading: textPrompt,
       imageBuffer1,
       imageBuffer2,
