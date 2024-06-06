@@ -20,8 +20,6 @@ export default function Home() {
       );
 
       // const responseData = await response.json();
-      console.log("PDF created", response.data);
-
       // read output.pdf
       // const url = "/output.pdf";
       // setPdfUrl(url);

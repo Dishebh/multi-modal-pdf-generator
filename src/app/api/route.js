@@ -9,8 +9,6 @@ const openai = new OpenAI({
 });
 
 async function generateText(prompt) {
-  console.log("prompt", prompt);
-
   const response = await openai.chat.completions.create({
     model: "gpt-4", // Replace with "gpt-4" if available
     max_tokens: 500,
@@ -22,7 +20,6 @@ async function generateText(prompt) {
     ],
   });
 
-  console.log("text!", response.choices[0].message.content);
   return response.data;
 }
 
@@ -34,7 +31,6 @@ async function generateImage(prompt) {
     size: "1024x1024",
   });
 
-  console.log("image!", response.data[0].url);
   return response.data[0].url;
 }
 
@@ -57,20 +53,22 @@ async function downloadImage(url) {
   }
 }
 
-async function createPDF(
+async function createPDF({
   text,
-  imageBuffer,
-  heading = "Future of Technology by 2024"
-) {
+  heading = "Future of Technology by 2024",
+  imageBuffer1,
+  imageBuffer2,
+}) {
   const pdfDoc = await PDFDocument.create();
   const page1 = pdfDoc.addPage([1190.55, 841.89]); // A3 size in points
   const page2 = pdfDoc.addPage([1190.55, 841.89]); // Second page
   const { width, height } = page1.getSize();
 
   // Embed the image
-  const image = await pdfDoc.embedJpg(imageBuffer);
+  const image1 = await pdfDoc.embedJpg(imageBuffer1);
+  const image2 = await pdfDoc.embedJpg(imageBuffer2);
   const halfWidth = width / 2;
-  const imageDims = image.scale(halfWidth / image.width);
+  const imageDims = image1.scale(halfWidth / image1.width);
 
   // Define padding
   const padding = 20;
@@ -95,7 +93,7 @@ async function createPDF(
   const secondHalf = textArray.slice(midIndex).join(" ");
 
   // Draw the image and first half of the text on the first page
-  page1.drawImage(image, {
+  page1.drawImage(image1, {
     x: imageX,
     y: imageY,
     width: halfWidth - padding,
@@ -144,7 +142,7 @@ async function createPDF(
   // Draw the image on the right side of the second page
   const imageSecondPageX = width / 2 + padding;
   const imageSecondPageY = height - imageDims.height - 2 * padding;
-  page2.drawImage(image, {
+  page2.drawImage(image2, {
     x: imageSecondPageX,
     y: imageSecondPageY,
     width: halfWidth - padding,
@@ -186,16 +184,20 @@ export async function POST(req, res) {
       "\n" +
       "Remember, these are all assumptions based on current trends and data, and the actual future of technology might be different as it's largely influenced by ongoing research, innovation, societal changes, and so on.";
 
-    console.log("text length", text.split(" ").length);
     const imageUrl = "https://wallpapercave.com/wp/wp4471392.jpg";
-    const imageUrl2 =
-      "https://oaidalleapiprodscus.blob.core.windows.net/private/org-pSQ6zGFQyWqanvSQ9FbhX0f2/user-t2hWWdJGz3lw39DurWDwgbJd/img-04LepVrPzuB5DY5Fzlx1LjbH.png?st=2024-06-05T18%3A37%3A17Z&se=2024-06-05T20%3A37%3A17Z&sp=r&sv=2023-11-03&sr=b&rscd=inline&rsct=image/png&skoid=6aaadede-4fb3-4698-a8f6-684d7786b067&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2024-06-05T17%3A10%3A45Z&ske=2024-06-06T17%3A10%3A45Z&sks=b&skv=2023-11-03&sig=oS7RT6s7%2BEdA%2B6fzV1FA%2B2w0DrrtdWRF3Uw77T2fd8g%3D";
+    const imageUrl2 = "https://cdn.wallpapersafari.com/56/10/tZn5Dl.jpg";
 
     // const text2 = await generateText(textPrompt);
     // const image2 = await generateImage(textPrompt);
 
-    const imageBuffer = await downloadImage(imageUrl);
-    const pdfBuffer = await createPDF(text, imageBuffer, textPrompt);
+    const imageBuffer1 = await downloadImage(imageUrl);
+    const imageBuffer2 = await downloadImage(imageUrl2);
+    const pdfBuffer = await createPDF({
+      text,
+      heading: textPrompt,
+      imageBuffer1,
+      imageBuffer2,
+    });
 
     // set headers in nextresponse
     const response = new NextResponse(pdfBuffer);
@@ -215,6 +217,5 @@ export async function POST(req, res) {
 }
 
 export async function GET(req, res) {
-  console.log("GET request received");
   return NextResponse.json({ message: "Hello World" }, { status: 200 });
 }
