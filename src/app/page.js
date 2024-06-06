@@ -7,8 +7,11 @@ import axios from "axios";
 export default function Home() {
   const [textPrompt, setTextPrompt] = useState("");
   const [pdfUrl, setPdfUrl] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const generatePDF = async () => {
+    setLoading(true);
+
     try {
       const response = await axios.post(
         "/api",
@@ -28,6 +31,8 @@ export default function Home() {
       setPdfUrl(url);
     } catch (error) {
       console.error("Error generating PDF", error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -52,7 +57,8 @@ export default function Home() {
       >
         Generate PDF
       </Button>
-      {pdfUrl && (
+      {loading && <Typography variant="body1">Loading...</Typography>}
+      {!loading && pdfUrl && (
         <iframe
           src={pdfUrl}
           title="output-pdf"

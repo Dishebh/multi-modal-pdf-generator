@@ -1,8 +1,8 @@
 import OpenAI from "openai";
 import axios from "axios";
-import { PDFDocument } from "pdf-lib";
+import { PDFDocument, StandardFonts } from "pdf-lib";
 import { NextResponse } from "next/server";
-import fs from "fs";
+import sharp from "sharp";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -13,79 +13,189 @@ async function generateText(prompt) {
 
   const response = await openai.chat.completions.create({
     model: "gpt-4", // Replace with "gpt-4" if available
-    prompt: "tech vision 2024",
     max_tokens: 500,
     messages: [
       {
-        role: "system",
-        content: "You are a helpful assistant.",
+        role: "user",
+        content: prompt,
       },
     ],
   });
 
-  console.log("text!", response.data);
+  console.log("text!", response.choices[0].message.content);
   return response.data;
 }
 
 async function generateImage(prompt) {
-  const response = await openai.createImage({
-    prompt: prompt,
+  const response = await openai.images.generate({
+    prompt,
+    model: "dall-e-3",
     n: 1,
-    size: "512x512",
+    size: "1024x1024",
   });
-  return response.data.data[0].url;
+
+  console.log("image!", response.data[0].url);
+  return response.data[0].url;
 }
 
 async function downloadImage(url) {
-  const response = await axios({
-    url,
-    responseType: "arraybuffer",
-  });
-  return Buffer.from(response.data, "binary");
+  try {
+    const response = await axios({
+      url,
+      responseType: "arraybuffer",
+    });
+
+    const imageBuffer = Buffer.from(response.data, "binary");
+
+    // Convert the image to JPG format using sharp
+    const jpgBuffer = await sharp(imageBuffer).jpeg().toBuffer();
+
+    return jpgBuffer;
+  } catch (error) {
+    console.error("Error downloading or converting image:", error);
+    throw error;
+  }
 }
 
-async function createPDF(text, imageBuffer) {
+async function createPDF(
+  text,
+  imageBuffer,
+  heading = "Future of Technology by 2024"
+) {
   const pdfDoc = await PDFDocument.create();
-  const page = pdfDoc.addPage([600, 800]);
-  const { width, height } = page.getSize();
-  const textWidth = width - 50;
-  page.drawText(text, {
-    x: 25,
-    y: height - 100,
-    size: 12,
-    maxWidth: textWidth,
-    lineHeight: 14,
-  });
+  const page1 = pdfDoc.addPage([1190.55, 841.89]); // A3 size in points
+  const page2 = pdfDoc.addPage([1190.55, 841.89]); // Second page
+  const { width, height } = page1.getSize();
 
+  // Embed the image
   const image = await pdfDoc.embedJpg(imageBuffer);
-  const imageDims = image.scale(0.5);
-  page.drawImage(image, {
-    x: 25,
-    y: height / 2 - imageDims.height / 2,
-    width: imageDims.width,
+  const halfWidth = width / 2;
+  const imageDims = image.scale(halfWidth / image.width);
+
+  // Define padding
+  const padding = 20;
+
+  // Load fonts
+  const timesRomanFont = await pdfDoc.embedFont(StandardFonts.TimesRoman);
+  const timesRomanBoldFont = await pdfDoc.embedFont(
+    StandardFonts.TimesRomanBold
+  );
+
+  // Calculate positions
+  const imageX = padding;
+  const imageY = height - imageDims.height - 2 * padding;
+  const textX = imageX + halfWidth + padding;
+  const textY = height - 100;
+  const textWidth = halfWidth - padding;
+
+  // Split the text into two halves
+  const textArray = text.split(" ");
+  const midIndex = Math.ceil(textArray.length / 2);
+  const firstHalf = textArray.slice(0, midIndex).join(" ");
+  const secondHalf = textArray.slice(midIndex).join(" ");
+
+  // Draw the image and first half of the text on the first page
+  page1.drawImage(image, {
+    x: imageX,
+    y: imageY,
+    width: halfWidth - padding,
     height: imageDims.height,
   });
 
-  const pdfBytes = await pdfDoc.save();
-  const pdfBuffer = Buffer.from(pdfBytes.buffer, "binary");
-  console.log("PDF created", pdfBuffer);
+  // Draw the heading on the first page
+  page1.drawText(heading, {
+    x: textX,
+    y: textY,
+    size: 32, // Larger font size for heading
+    font: timesRomanBoldFont, // Bold font for heading
+  });
 
-  // path should be in public folder
-  // const path = "public/output.pdf";
-  // fs.writeFileSync(path, pdfBytes);
+  // Draw the first half of the text below the heading on the first page
+  const headingHeight = 32 + 20; // Heading font size + padding
+  const textPositionY = textY - headingHeight;
+
+  page1.drawText(firstHalf, {
+    x: textX,
+    y: textPositionY,
+    size: 18, // Larger font size for the text
+    maxWidth: textWidth,
+    lineHeight: 22,
+    font: timesRomanFont,
+  });
+
+  // Draw the heading on the second page
+  page2.drawText(heading, {
+    x: padding,
+    y: height - 100,
+    size: 32, // Larger font size for heading
+    font: timesRomanBoldFont, // Bold font for heading
+  });
+
+  // Draw the second half of the text on the second page
+  page2.drawText(secondHalf, {
+    x: padding,
+    y: height - 150,
+    size: 18,
+    maxWidth: textWidth,
+    lineHeight: 22,
+    font: timesRomanFont,
+  });
+
+  // Draw the image on the right side of the second page
+  const imageSecondPageX = width / 2 + padding;
+  const imageSecondPageY = height - imageDims.height - 2 * padding;
+  page2.drawImage(image, {
+    x: imageSecondPageX,
+    y: imageSecondPageY,
+    width: halfWidth - padding,
+    height: imageDims.height,
+  });
+
+  // Save the PDF and return it as a buffer
+  const pdfBytes = await pdfDoc.save();
+  const pdfBuffer = Buffer.from(pdfBytes);
   return pdfBuffer;
 }
 
 export async function POST(req, res) {
-  const { textPrompt, imagePrompt } = req.body;
+  const { textPrompt } = await req.json();
 
   try {
     const text =
-      'Contrary to popular belief, Lorem Ipsum is not simply random text. It has roots in a piece of classical Latin literature from 45 BC, making it over 2000 years old. Richard McClintock, a Latin professor at Hampden-Sydney College in Virginia, looked up one of the more obscure Latin words, consectetur, from a Lorem Ipsum passage, and going through the cites of the word in classical literature, discovered the undoubtable source. Lorem Ipsum comes from sections 1.10.32 and 1.10.33 of "de Finibus Bonorum et Malorum" (The Extremes of Good and Evil) by Cicero, written in 45 BC. This book is a treatise on the theory of ethics, very popular during the Renaissance. The first line of Lorem Ipsum, "Lorem ipsum dolor sit amet..", comes from a line in section 1.10.32.';
-    const imageUrl =
-      "https://randomwordgenerator.com/img/picture-generator/57e0d6424c5aa414f1dc8460962e33791c3ad6e04e507440762e7adc934cc7_640.jpg";
+      "As an AI, I don't predict future developments, but I can give an analysis based on current trends and technologies that could potentially shape the tech world by 2024:\n" +
+      "\n" +
+      "1. Artificial Intelligence & Machine Learning: Since AI is one of the leading technologies that already drives various aspects of our life, we can see AI being more intertwined in a broader range of fields such as healthcare, transportation, security, entertainment, etc., and becoming more efficient and precise. With ML, we can expect improved facial recognition, prediction models, and other applications.\n" +
+      "\n" +
+      "2. The rise of 5G: With 5G technology, the connectivity speed is expected to be significantly higher, thus allowing for more real-time applications, more IoT devices connectivity, and overall faster data sharing.\n" +
+      "\n" +
+      "3. Advancements in Quantum Computing: While still in its early stages, quantum computing could potentially revolutionize our processing capabilities, enabling faster calculations and more complex algorithms.\n" +
+      "\n" +
+      "4. IoT and Smart Cities: With the development of IoT technology, cities will be smarter and more connected. Traffic systems, environmental monitoring, utility, and even waste management could be controlled by a network of IoT devices, making operations more efficient.\n" +
+      "\n" +
+      "5. Cybersecurity advancements: As technology advances, so does the potential for cyber threats. Therefore, the demand for advanced and more robust cybersecurity measures will increase.\n" +
+      "\n" +
+      "6. Augmented Reality (AR) and Virtual Reality (VR): Advancements in these areas could revolutionize how we work and play. VR could be used for virtual traveling, gaming, training simulations, and more, while AR can enhance our daily life experiences.\n" +
+      "\n" +
+      "7. Advancements in Blockchain: Blockchain could become more commonly used beyond cryptocurrencies for its excellent security and transparency. It could be used in supply chain management, finance, healthcare, and other sectors.\n" +
+      "\n" +
+      "8. Automation and Robotics: We could see more automation in everyday tasks and more advanced robotics used in various industries.\n" +
+      "\n" +
+      "9. Space Technology: With recent advancements, we can expect further developments and potentially more commercial and governmental activities in space.\n" +
+      "\n" +
+      "10. BioTech and MedTech: These sectors will continue to grow with technologies such as gene-editing, personalized medicine, better diagnostic tools, AI-driven drug discovery and more.\n" +
+      "\n" +
+      "Remember, these are all assumptions based on current trends and data, and the actual future of technology might be different as it's largely influenced by ongoing research, innovation, societal changes, and so on.";
+
+    console.log("text length", text.split(" ").length);
+    const imageUrl = "https://wallpapercave.com/wp/wp4471392.jpg";
+    const imageUrl2 =
+      "https://oaidalleapiprodscus.blob.core.windows.net/private/org-pSQ6zGFQyWqanvSQ9FbhX0f2/user-t2hWWdJGz3lw39DurWDwgbJd/img-04LepVrPzuB5DY5Fzlx1LjbH.png?st=2024-06-05T18%3A37%3A17Z&se=2024-06-05T20%3A37%3A17Z&sp=r&sv=2023-11-03&sr=b&rscd=inline&rsct=image/png&skoid=6aaadede-4fb3-4698-a8f6-684d7786b067&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2024-06-05T17%3A10%3A45Z&ske=2024-06-06T17%3A10%3A45Z&sks=b&skv=2023-11-03&sig=oS7RT6s7%2BEdA%2B6fzV1FA%2B2w0DrrtdWRF3Uw77T2fd8g%3D";
+
+    // const text2 = await generateText(textPrompt);
+    // const image2 = await generateImage(textPrompt);
+
     const imageBuffer = await downloadImage(imageUrl);
-    const pdfBuffer = await createPDF(text, imageBuffer);
+    const pdfBuffer = await createPDF(text, imageBuffer, textPrompt);
 
     // set headers in nextresponse
     const response = new NextResponse(pdfBuffer);
