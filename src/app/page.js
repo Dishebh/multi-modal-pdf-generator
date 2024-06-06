@@ -37,26 +37,28 @@ export default function Home() {
   };
 
   return (
-    <Container maxWidth="sm" style={{ textAlign: "center", marginTop: "50px" }}>
-      <Typography variant="h4" gutterBottom>
-        Multimodal PDF Generator
-      </Typography>
-      <TextField
-        label="Enter text prompt"
-        variant="outlined"
-        fullWidth
-        margin="normal"
-        value={textPrompt}
-        onChange={(e) => setTextPrompt(e.target.value)}
-      />
-      <Button
-        variant="contained"
-        color="primary"
-        onClick={generatePDF}
-        style={{ marginTop: "20px" }}
-      >
-        Generate PDF
-      </Button>
+    <Container maxWidth="md" style={{ textAlign: "center", marginTop: "50px" }}>
+      <Container maxWidth="sm">
+        <Typography variant="h4" gutterBottom>
+          Multimodal PDF Generator
+        </Typography>
+        <TextField
+          label="Enter text prompt"
+          variant="outlined"
+          fullWidth
+          margin="normal"
+          value={textPrompt}
+          onChange={(e) => setTextPrompt(e.target.value)}
+        />
+        <Button
+          variant="contained"
+          color="primary"
+          onClick={generatePDF}
+          style={{ marginTop: "20px" }}
+        >
+          Generate PDF
+        </Button>
+      </Container>
       {loading && <Typography variant="body1">Loading...</Typography>}
       {!loading && pdfUrl && (
         <iframe

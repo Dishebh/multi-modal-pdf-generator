@@ -84,7 +84,7 @@ async function createPDF(
   // Calculate positions
   const imageX = padding;
   const imageY = height - imageDims.height - 2 * padding;
-  const textX = imageX + halfWidth + padding;
+  const textX = imageX + halfWidth;
   const textY = height - 100;
   const textWidth = halfWidth - padding;
 
