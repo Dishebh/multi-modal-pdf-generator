@@ -53,6 +53,7 @@ export default function Home() {
           color="primary"
           onClick={generatePDF}
           style={{ marginTop: "20px" }}
+          disabled={!textPrompt}
         >
           Generate PDF
         </Button>
